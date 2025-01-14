@@ -808,6 +808,12 @@ sources = {
 		"FormFactorManager",
 		"SinXOverX",
 	],
+	"core/scoring/shape": [
+    		"VoxelGrid",
+    		"Neighbour",
+    		"ZernikeDescriptorEnergy",
+    		"ZernikeDescriptorData",
+  	],
 	"core/scoring/sc": [
 		"ContactMolecularSurfaceCalculator",
 		"ElectrostaticComplementarityCalculator",
@@ -949,6 +955,15 @@ sources = {
 		"sequence_motif",
 		"util",
 	],
+	"core/scoring/shape/zernike": [
+		"ZernikeMoments",
+		"ZernikeDescriptor",
+		"Zernike2Ddescriptor",
+		"ZernikeMoments",
+		"ScaledGeometricMoments",
+		"Binomial",
+		"Factorial",
+        ],
 }
 include_path = [
 ]

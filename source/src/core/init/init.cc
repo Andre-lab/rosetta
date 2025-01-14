@@ -265,6 +265,8 @@
 #include <core/energy_methods/FiberDiffractionEnergyGpuCreator.hh>
 #endif
 #include <core/energy_methods/PointWaterEnergyCreator.hh>
+#include <core/energy_methods/PointWaterEnergyCreator.hh>
+#include <core/scoring/shape/ZernikeDescriptorEnergyCreator.hh>
 
 // Rotamer Library registration
 #include <core/chemical/rotamers/RotamerLibrarySpecificationRegistrator.hh>

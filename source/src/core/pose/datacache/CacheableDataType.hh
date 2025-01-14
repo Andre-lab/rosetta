@@ -102,7 +102,7 @@ public:
 		NMR_PRE_DATA, // a core::scoring::nmr::pre::PREData; stores paramagnetic relaxation enhancement data of the paramagnetic NMR framework (implemented in 2016)
 		EPR_DEER_DATA, // Used for storing experimental double electron-electron resonance (DEER) data
 		DEPC_MS_SASA_POSE_INFO, // Used for storing SASA of each residue
-
+		ZERNIKE_DESCRIPTOR_DATA, // a core::scoring::shape:ZernikeDescriptorData; stores Zernike Descriptor data
 
 		// Old, unused terms
 		//  MEMBRANE_POTENTIAL,

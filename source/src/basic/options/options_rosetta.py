@@ -3790,6 +3790,21 @@ EX_SIX_QUARTER_STEP_STDDEVS   7          +/- 0.25, 0.5, 0.75, 1, 1.25 & 1.5 sd; 
 		Option( 'symmetric_rmsd', 'Boolean', desc='calculate the rmsd symmetrically by checking all chain orderings'),
 	), # -symmetry
 
+         # Zernike descriptor
+                Option_Group( 'zernike_descriptor',
+                        Option( 'zernike_descriptor_file', 'File', desc="Zernike descriptor file for scoring", default=""),
+                        Option( 'zernike_descriptor_pose', 'File', desc="Pose to calculate Zernike desciptor from for scoring", default=""),
+                        Option( 'order', 'Integer', desc="Order for zernike descriptor calculations", default="20"),
+                        Option( 'grid_size', 'Integer', desc="Grid size for voxelation", default="64"),
+                        Option( 'probe_radius', 'Real', desc="probe radius for voxelation", default="1.4"),
+                        Option( 'shell_thickness', 'Real', desc="Surface shell thickness", default="2.0"),
+                        Option( 'surface_type', 'String', legal=["MS", "SAS", "VDW"], desc="Surface type", default="MS"),
+                        Option( 'zernike_transform_type', 'String', legal=["2D", "3D", "2D_3D"], desc="Zernike transform type", default="3D"),
+                        Option( 'num_2d_slices', 'Integer', desc="Number of Zernike 2D slices", default="10000"),
+                        Option( 'transform_outline', 'Boolean', desc="Transform outline, no voxelation", default="false"),
+                        Option( 'debug', 'Boolean', desc="Output debug information", default="false"),
+                ), #-zernike
+
 ######################################
 # Application specific options
 # Please keep option groups in alphabetical order

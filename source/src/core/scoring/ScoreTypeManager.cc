@@ -623,6 +623,8 @@ ScoreTypeManager::setup_score_type_names()
 
 	name2score_type_[ "rna_coarse_dist" ] = rna_coarse_dist;
 
+	name2score_type_[ "zernike_descriptor" ] = zernike_descriptor;
+
 	name2score_type_[ "total_score" ] = total_score;
 
 	name2score_type_[ "dummy_score_type" ] = dummy_score_type;

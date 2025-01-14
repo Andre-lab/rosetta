@@ -116,6 +116,7 @@ enum ScoreType {
 	fiberdiffractiongpu, // fiber diffraction gpu score
 #endif
 	epr_deer_score,
+	zernike_descriptor, // zernike shape matching
 
 	//pba Membrane all atom terms
 	fa_mbenv,       // depth dependent reference term
