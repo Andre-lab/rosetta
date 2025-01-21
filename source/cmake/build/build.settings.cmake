@@ -671,7 +671,7 @@ if( WIN32 )
 	# script. Additionally, cmd can only handle back slashes...
 	EXECUTE_PROCESS(COMMAND "cmd" "/c ..\\..\\update_submodules.sh ${EXTRAS}" RESULT_VARIABLE rv )
 else()
-	EXECUTE_PROCESS(COMMAND "../../update_submodules.sh" "${EXTRAS}" RESULT_VARIABLE rv)
+	EXECUTE_PROCESS(COMMAND "../../../update_submodules.sh" "${EXTRAS}" RESULT_VARIABLE rv)
 endif()
 if( NOT rv STREQUAL "0" )
 	message( FATAL_ERROR "update_submodules.sh failed with: ${rv}" )
