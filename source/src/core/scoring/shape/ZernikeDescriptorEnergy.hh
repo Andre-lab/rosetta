@@ -44,13 +44,26 @@ public:
         std::string const & surface_type = "MS",
         core::Real probe = 1.4,
         core::Real shell = 2,
-        int num_slices = 10000);
+        int num_slices = 10000,
+        bool never_leave_neighbour = false);
 
     std::vector<double>
     invariants_from_pose(core::pose::Pose const & pose);
 
-  std::vector<std::complex<double>>
-  moments_from_pose(core::pose::Pose const & pose);
+    std::vector<std::complex<double>>
+    moments_from_pose(core::pose::Pose const & pose);
+
+    std::vector<double>
+    invariants_from_vector(std::vector<std::vector<core::Real>>, std::vector<core::Real>);
+
+    std::vector<std::complex<double>>
+    moments_from_vector(std::vector<std::vector<core::Real>>, std::vector<core::Real>);
+
+    std::vector<std::vector<std::vector<std::complex<double> > > >
+    reconstruct_shape_from_pose(core::pose::Pose const & pose);
+
+    std::vector<std::vector<std::vector<std::complex<double>>>>
+    reconstruct_shape_from_vector(std::vector<std::vector<core::Real>>, std::vector<core::Real>);
 
     std::vector<double>
     invariants_slice_from_pose_and_surface_vectors(
@@ -58,8 +71,8 @@ public:
        numeric::xyzVector<Real> surface_vector1,
        numeric::xyzVector<Real> surface_vector2 );
 
-	std::vector<double>
-    invariants_from_grid_file(std::string filename);
+	// std::vector<double>
+ //    invariants_from_grid_file(std::string filename);
 
 
     std::vector<double>
@@ -93,6 +106,10 @@ public:
 //    invariants_from_file(std::string const & filename);
 
     void
+    invariants_from_vector_to_file(std::vector<std::vector<core::Real>>,
+        std::vector<core::Real>, std::string const &);
+
+    void
     invariants_from_pose_to_file(core::pose::Pose const & pose, std::string const & filename);
 
 	void
@@ -118,8 +135,8 @@ public:
     void
     invariants_2D_from_pose_to_file(core::pose::Pose const & pose, std::string const & filename);
 
-    void
-    invariants_from_grid_file_to_file(std::string input_filename, std::string const & filename);
+    // void
+    // invariants_from_grid_file_to_file(std::string input_filename, std::string const & filename);
 
     void
     invariants_from_grid_outline_file_to_file(std::string input_filename, std::string const & filename);
@@ -130,8 +147,7 @@ public:
     std::vector<std::complex<double>> get_3d_moments();
     std::vector<std::complex<double>> get_2d_moments();
 
-    VoxelGrid &
-    grid();
+    VoxelGrid & get_grid();
 
 private:
     int order_;

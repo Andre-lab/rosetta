@@ -40,12 +40,12 @@ public:
 
     Zernike2Ddescriptor (
             std::vector<std::vector<int>> _grid,                 /*The voxel surface*/
-            int _dim,                   /**< dimension of 2D grid */
+            int _dim,                   /**< dimension of 2D get_grid */
             int _order                  /**< maximal order of the Zernike moments */
     );
 
     Zernike2Ddescriptor (
-            int _dim,                   /**< dimension of 2D grid */
+            int _dim,                   /**< dimension of 2D get_grid */
             int _order                  /**< maximal order of the Zernike moments */
     );
 
@@ -84,7 +84,7 @@ rad_poly(std::vector<std::vector<double>> &rho,int n,int m);
 private:
     // ---- member variables ----
     std::vector<std::vector<int>> grid_;                // 1D array containing the voxels
-    int     dim_;                   // length of the edge of the voxel grid (which is a cube)
+    int     dim_;                   // length of the edge of the voxel get_grid (which is a cube)
     int     order_;                 // maximal order of the moments to be computed (max{n})
 
     std::vector<core::Real> invariants_;        // 2D vector of invariants under SO(3)

@@ -8,23 +8,23 @@
 // (c) addressed to University of Washington CoMotion, email: license@uw.edu.
 
 /// @file       core/scoring/shape/VoxelGrid.hh
-/// @brief      The VoxelGrid class voxelizes a pose and from it produces zernike descriptors (or invariants)
+/// @brief      The VoxelGrid class voxelizes a pose and from it produces zernike descriptor_out (or invariants)
 /// @details    The VoxelGrid class main functions and purposes are:
-///             1: voxelize(pose) - Voxelizes a pose in a grid.
+///             1: voxelize(pose) - Voxelizes a pose in a get_grid.
 ///             2: find_surface() - Finds the surface voxels of the voxelized pose.
 ///             3: edt() - Does a Euclidian Distance Transform (EDT) from the surface voxels and marks shell voxels.
-///             4: zernike_transform(order) - from the shell voxels calculates zernike descriptors with order.
+///             4: zernike_transform(order) - from the shell voxels calculates zernike descriptor_out with order.
 ///             5: invariants() - returns the invariants calculated.
 ///
 ///             The main objects of the class are:
-///             grid_: A FArray3D that contains a (DIM+2)*(DIM+2)*(DIM+2)  object that acts like the grid.
-///             The reason for having +2 in the grid DIM is that the find_surface() function needs at least 1 voxel
+///             grid_: A FArray3D that contains a (DIM+2)*(DIM+2)*(DIM+2)  object that acts like the get_grid.
+///             The reason for having +2 in the get_grid DIM is that the find_surface() function needs at least 1 voxel
 ///             on each side to move around the voxelized pose.
 ///             surface_voxels_frontier_: A Queue that initially contains the surface voxels found by
 ///             find_surface() but is later on populated and trimmed by edt().
-///             shell_: A Queue that marks the shell voxels used by zernike_transform() to caluclate zernike descriptors
+///             shell_: A Queue that marks the shell voxels used by zernike_transform() to caluclate zernike descriptor_out
 ///             zernike_descriptor_: A core::scoring::shape::zernike::ZernikeDescriptor<double, double>  object that
-///             holds the zernike_descriptors calculated from the grid. Can return invariants through invariants().
+///             holds the zernike_descriptors calculated from the get_grid. Can return invariants through invariants().
 ///
 ///             Each function and there algorithm is described in detail below.
 ///
@@ -98,7 +98,7 @@ public:
     void visit_by_edt();
 
     ///@brief: check if the voxel has been visited.
-    bool visited_by_edt();
+    bool is_visited_by_edt();
 
     ///@brief: mark the voxel as unvisited.
     void unvisit_by_edt();
@@ -179,7 +179,7 @@ private:
     core::Real edt_dist_;
 };
 
-///@brief: 3D voxel grid object. Can take voxelize a pose and find which voxels are surface voxels.
+///@brief: 3D voxel get_grid object. Can take voxelize a pose and find which voxels are surface voxels.
 class VoxelGrid {
 public:
 
@@ -193,8 +193,8 @@ public:
                core::Real shell = 2,
                bool recalculate = true,
                bool scale_on = false,
-               core::Real scaling = 1);
-
+               core::Real scaling = 1,
+               bool never_leave_neighbour = false);
     ///@brief: default destructor.
     ~VoxelGrid() = default;
 
@@ -204,14 +204,14 @@ public:
     ///@brief: voxelizes a pose.
     ///
     ///@details: Algorithm:
-    /// 1. The pose grid is cleaned for any labelling (filled and visited).
+    /// 1. The pose get_grid is cleaned for any labelling (filled and visited).
     /// 2. The geometric center of the pose is found and the maximum distance to any atom in the pose to the geometric center is recorded.
     /// 3. This distance is used together with the probe size and maximum lennard jones radii,
-    /// to set the grid size in angstrom, and is used to set the grid resolution (aka the size of a voxel in angstrom).
-    /// the following formula sets the grid resolution:
+    /// to set the get_grid size in angstrom, and is used to set the get_grid resolution (aka the size of a voxel in angstrom).
+    /// the following formula sets the get_grid resolution:
 //    / OLD:
 //    / = (maximum distance to an atom from geometrical center + maximu LJ radii + probe) / (dim/2 - 0.5 - 1 - 0.5 (if dim % 2 != 0))
-//    / - dim/2 becuase we consider the geometrical center to atom with the maximum distance (hence half the grid dim).
+//    / - dim/2 becuase we consider the geometrical center to atom with the maximum distance (hence half the get_grid dim).
 //    / - dim and not dim+2 becuase we want the pose to only consider the 2 - (dim-1) gridvoxels (see the description at the top of the source file)
 //    / - -2 to give some extra cushioning because:
 //    /         The distance to the nearest voxel is only half a voxel, and to the next one 1.5 voxel (see the Neighbour class).
@@ -221,19 +221,26 @@ public:
     /// pretty much same as before but added 1 voxel extra (problem with 6qfj) + removed the geometric_center_at_grid_center // todo. REMOVE THIS VARIABLE IN THE FUTURE
     /// = (maximum distance to an atom from geometrical center + maximu LJ radii + probe) / (dim/2 - 0.5 - 1 - 0.5 (if dim % 2 != 0))
     /// and on that note have +0.5 advantage.
-    /// 4. The pose is voxelized by putting the geometrical center at the grid mid point and then iterating through each atom
-    /// and filling the voxels that are (atom distance to geomtrical center / grid resolution) away.
+    /// 4. The pose is voxelized by putting the geometrical center at the get_grid mid point and then iterating through each atom
+    /// and filling the voxels that are (atom distance to geomtrical center / get_grid resolution) away.
     /// 5. A solid is made by filling in neighbouring atom acording to the surface type (probe/no probe) and LJ radii.
     /// All the voxelized voxels at this point are marked "filled=true"
     ///
     ///@param pose the pose to voxelize
     ///
     /// example(s):
-    ///     voxelgrid.voxelize(pose)
+    ///     voxelgrid_out.voxelize(pose)
     void voxelize(core::pose::Pose const & pose);
-    /// @brief function to initialize a grid stored from file
-    void voxel_grid_from_file( std::string filename);
+
+    /// The internal algorithm of the voxelize(pose) is in carried out in this function
+    void
+    voxelize(std::vector<std::vector<core::Real>>, std::vector<core::Real>);
+
+    // /// @brief function to initialize a get_grid stored from file
+    // void voxel_grid_from_file( std::string filename);
+
     void set_voxel_grid( std::vector< std::vector<int> > slice_for_ZT );
+
     /// @brief
     std::vector< std::vector<int> >
     slice_outline_grid_from_file( std::string filename);
@@ -241,27 +248,34 @@ public:
     ///@brief: finds the surface of a voxelized pose.
     ///@Details: Algorithm:
     /// 1. Finds a surface voxel from the voxels marked filled in voxelize() by searching in one
-    /// direction starting from the grid edge.
+    /// direction starting from the get_grid edge.
     /// 2. Recursively walks around in 6 directions (not 26 directions, which is much slower) and marks any surface
     /// voxels it hits while also never leaving to far away from the surface.
     /// This approach is a faster modification of a full flood fill algorithm.
     ///
     /// example(s):
-    ///     voxelgrid.find_surface()
+    ///     voxelgrid_out.find_surface()
     void find_surface();
 
+    // todo: should probably be private?
+    void
+    find_surface_with_stack();
+
+    // todo: should probably be private?
+    void
+    find_surface_with_recursion();
 
     ///@brief: finds the shell voxels through an edt algorithm.
     ///@Details: Algorithm:
     /// 1. Starts from the surface voxels found in find_surface() that are considered the root of the EDT algorithm.
     /// 2. Propagating inwards ("propagiting the frontier") taking 1 voxel at the time, it sets the x, y and z
-    /// coordinate of the voxel in the grid to the closest root voxels and calculates the distances of all neighbours
+    /// coordinate of the voxel in the get_grid to the closest root voxels and calculates the distances of all neighbours
     /// with respect to the root x,y, and z.
     /// 3. It adds voxels to the shell if allowed by the surface type (MS, SAS, VDW etc.)
     /// 4. It stops the algorithm after a max edt seach has been conducted with again depends on the surface type.
     ///
     /// example(s):
-    ///     voxelgrid.edt()
+    ///     voxelgrid_out.edt()
     void
     edt();
 
@@ -270,7 +284,7 @@ public:
     /// 1. top secret :O ....
     ///
     /// example(s):
-    ///     voxelgrid.zernike_transform()
+    ///     voxelgrid_out.zernike_transform()
     void
     zernike_transform(int order);
 
@@ -282,7 +296,7 @@ public:
     /// 1. top secret :O ....
     ///
     /// example(s):
-    ///     voxelgrid.zernike_transform()
+    ///     voxelgrid_out.zernike_transform()
 
 	std::vector< std::vector<int> >
 	shrink_2D_grid( std::vector< std::vector<int> > slice_for_ZT );
@@ -296,14 +310,15 @@ public:
 	void
 	zernike2D_transform_from_slice(int order);
 
- void
-  zernike2D_transform_from_stored_slice(
-      int order,
-      numeric::xyzVector<Real> surface_vector1,
-      numeric::xyzVector<Real> surface_vector2 );
+    void
+    zernike2D_transform_from_stored_slice(
+    int order,
+    numeric::xyzVector<Real> surface_vector1,
+    numeric::xyzVector<Real> surface_vector2 );
 
 	void
 	zernike2D_transform_from_outline_slice(std::vector< std::vector<int> > slice_for_ZT, int order);
+
     ///@brief: returns the filled voxels
     std::vector<std::vector<int>>
     get_filled_voxels();
@@ -323,6 +338,10 @@ public:
     ///@brief: returns the surface_by_edt voxels
     std::vector<std::vector<int>>
     get_surface_by_edt_voxels();
+
+    ///@brief: outputs all voxel information data (the same as the 5 functions above) into a csv format.
+    void output_grid_json(std::string name);
+
 
 
     ///@brief: outputs all voxel information data (the same as the 5 functions above) into a csv format.
@@ -391,19 +410,6 @@ public:
     bool
     is_utilizing_the_whole_grid();
 
-//    pybind11::array_t<int>
-//    get_grid_map();
-
-    // not visible in pyrosetta
-//    std::map<std::string,  std::vector<std::tuple<int, int, int>>>
-//    get_grid_map();
-//
-//    std::map<std::string,  std::vector<std::vector<int>>>
-//    get_grid_mapping();
-
-
-
-
     void
     save_invariants( std::string filename );
 
@@ -418,15 +424,15 @@ public:
 
     void sample_random_surface_vectors();
 
-		core::pose::PoseOP
-		rotate_pose( core::pose::Pose const & pose);
+    core::pose::PoseOP
+    rotate_pose( core::pose::Pose const & pose);
 
     core::pose::PoseOP
     rotate_pose( core::pose::Pose const & pose, numeric::xyzVector<Real> surface_vector1,
                                           numeric::xyzVector<Real> surface_vector2 );
 
-		std::vector< std::vector< std::vector<int> > >
-		xy_plane(core::Size N);
+    std::vector< std::vector< std::vector<int> > >
+    xy_plane(core::Size N);
 
     std::vector< std::vector< std::vector<int> > >
     sample_slice_plane( core::Size N);
@@ -435,7 +441,7 @@ public:
     slice_plane_from_surface_vectors(
         numeric::xyzVector<Real> surface_vector1,
         numeric::xyzVector<Real> surface_vector2,
-       core::Size N);
+        core::Size N);
 
     ///@brief: return invariants
     std::vector<double> &
@@ -464,12 +470,15 @@ public:
 private:
 
     void
+    write_json_data(std::ofstream & file, std::string voxeltype, std::vector<std::vector<int>> & voxelvector);
+
+    void
     initialize_grid();
 
     void
     generate_neighbours();
 
-    ///@brief: unfills and unvisists all voxels in the grid.
+    ///@brief: unfills and unvisists all voxels in the get_grid.
     void
     clean_grid();
 
@@ -483,7 +492,7 @@ private:
 
     ///@brief: fills voxels that are on the surface. Only marks the 6 closest ones to the closest unfilled voxel.
     void
-    fillsurface(int x, int y, int z);
+    fillsurface_recursion(int x, int y, int z);
 
     ///@brief: finds 1 surface voxel. Is used to initialize the start of the fillsurface method.
     std::tuple<int, int, int>
@@ -522,6 +531,7 @@ private:
     core::Real grid_res_;
     core::Real probe_radius_;
     core::Real shell_thickness_;
+    bool never_leave_neighbour_;
     bool recalculate_;
     int surface_type_; // MS = 1, SAS = 2, VDW = 3
     core::Real max_edt_search_; // a constant that will limit the EDT search in the edt() function.

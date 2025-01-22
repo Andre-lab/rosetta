@@ -24,6 +24,7 @@
 #include <numeric/random/random.hh>
 #include <numeric/xyz.functions.hh>
 //#include <math.h>       /* pow */
+#include <stack>
 #include <cmath>
 //#include <external/pybind11/include/pybind11/pybind11.h>
 //#include <external/pybind11/include/pybind11/numpy.h>
@@ -117,7 +118,7 @@ Voxel::visit_by_edt() {
 }
 
 bool
-Voxel::visited_by_edt() {
+Voxel::is_visited_by_edt() {
     return visited_by_edt_;
 }
 
@@ -215,10 +216,12 @@ Voxel::operator==(const Voxel v) const {
 VoxelGrid::VoxelGrid(
         int size,
         std::string const & surface_type,
-        core::Real probe, core::Real shell,
+        core::Real probe,
+        core::Real shell,
         bool recalculate,
         bool scale_on,
-        core::Real scaling):
+        core::Real scaling,
+        bool never_leave_neighbour):
         grid_dimension_(size),
         actual_grid_dimension_(size + 2),
         geometric_center_at_grid_center_((size % 2) / 2),
@@ -226,6 +229,7 @@ VoxelGrid::VoxelGrid(
         scale_on_(scale_on),
         probe_radius_(probe),
         shell_thickness_(shell),
+		never_leave_neighbour_(never_leave_neighbour),
         recalculate_(recalculate),
         padding_(1.1){
     amount_of_voxel_neighbours_ = std::floor(size / 2);
@@ -280,49 +284,28 @@ VoxelGrid::operator()(int x, int y, int z) {
 }
 
 void
-VoxelGrid::voxelize(core::pose::Pose const & pose) {
+VoxelGrid::voxelize(std::vector<std::vector<core::Real>> atom_coords, std::vector<core::Real> ljs) {
 
-    core::Real padding = padding_;
+	core::Real padding = padding_;
 
-    // gogo label if grid is not big enough
-    // todo: probably not considered good to use goto so can be depreciated in the future - can make a wrapper function that returns a bool if fail!
-    beginning:
+	// gogo label if grid is not big enough
+	// todo: probably not considered good to use goto so can be depreciated in the future - can make a wrapper function that returns a bool if fail!
+	beginning:
 
-
-    // clean the grid (cleans the grid_ and surface_ objects)
-    clean_grid();
-
-    // find x, y, z and lj of every atom
-    std::vector<std::tuple<core::Real, core::Real, core::Real>> atom_coords;
-    std::vector<core::Real> ljs;
-    core::Real total_x = 0;
-    core::Real total_y = 0;
-    core::Real total_z = 0;
-    int n_atoms = 0;
-    core::Real lj;
-    for (core::pose::Pose::const_iterator res = pose.begin(); res != pose.end(); ++res) {
-        for (core::Size atom_index = 1; atom_index <= res->natoms(); ++atom_index) {
-            // skip if atom is Hydrogen or if residue is virtual.
-            if (!res->atom_is_hydrogen(atom_index && res->aa() != core::chemical::aa_vrt)) {
-                core::Real x = res->xyz(atom_index).x();
-                core::Real y = res->xyz(atom_index).y();
-                core::Real z = res->xyz(atom_index).z();
-                // only way I know of to test for a centroid atom
-                if (res->atom_type(atom_index).lj_radius() == 0.0)
-                    lj = res->nbr_radius();
-                else
-                    lj = res->atom_type(atom_index).lj_radius();
-                atom_coords.emplace_back(x, y, z);
-                ljs.emplace_back(lj);
-                total_x += x;
-                total_y += y;
-                total_z += z;
-                n_atoms += 1;
-            }
-        }
-    }
+	// clean the grid (cleans the grid_ and surface_ objects)
+	clean_grid();
 
     // calculate the geometric center of the pose
+	int n_atoms = atom_coords.size(); // len of vector
+	core::Real total_x = 0.0;
+	core::Real total_y = 0.0;
+	core::Real total_z = 0.0;
+    for (const auto& coord : atom_coords) {
+        assert(coord.size() == 3 && "Inner vector does not have exactly 3 elements");
+        total_x += coord[0];
+        total_y += coord[1];
+        total_z += coord[2];
+    }
     std::tuple<core::Real, core::Real, core::Real> geometric_center(total_x / n_atoms, total_y / n_atoms,
                                                                     total_z / n_atoms);
 
@@ -333,12 +316,16 @@ VoxelGrid::voxelize(core::pose::Pose const & pose) {
     core::Real x_in_angstrom;
     core::Real y_in_angstrom;
     core::Real z_in_angstrom;
-    for (std::tuple<core::Real, core::Real, core::Real> atom_coord : atom_coords) {
+    for (const auto& atom_coord : atom_coords) {
+
+        core::Real x = atom_coord[0];
+        core::Real y = atom_coord[1];
+        core::Real z = atom_coord[2];
 
         // alternative is valarray
-        x_in_angstrom = std::get<0>(atom_coord) - std::get<0>(geometric_center);
-        y_in_angstrom = std::get<1>(atom_coord) - std::get<1>(geometric_center);
-        z_in_angstrom = std::get<2>(atom_coord) - std::get<2>(geometric_center);
+        x_in_angstrom = x - std::get<0>(geometric_center);
+        y_in_angstrom = y - std::get<1>(geometric_center);
+        z_in_angstrom = z - std::get<2>(geometric_center);
         atom_coords_wrt_geometric_center.emplace_back(x_in_angstrom, y_in_angstrom, z_in_angstrom);
 
         max = std::max(std::abs(x_in_angstrom), max);
@@ -350,12 +337,7 @@ VoxelGrid::voxelize(core::pose::Pose const & pose) {
     core::Real half_grid_size_in_angstrom = max;
 
     // set the maximum atom radius depending on the pose residue types.
-    // alternatively *std::max_element(ljs.begin(), ljs.end()) - if you want to set it dynamically.
-    core::Real max_atom_radius;
-    if (pose.is_centroid())
-        max_atom_radius = 5.7;
-    else
-        max_atom_radius = 3;
+    core::Real max_atom_radius = *std::max_element(ljs.begin(), ljs.end());
 
     // increase the scaling to accomodate extra voxelization from taking the surface_type into account.
     half_grid_size_in_angstrom += max_atom_radius;
@@ -432,38 +414,67 @@ VoxelGrid::voxelize(core::pose::Pose const & pose) {
     }
 }
 
-void VoxelGrid::voxel_grid_from_file( std::string filename)
-{
-	 using namespace basic::options;
-   using namespace basic::options::OptionKeys;
 
-	std::string type = option[zernike_descriptor::zernike_transform_type].value();
-
-   clean_grid();
-   grid_res_ = 2.0;
-    std::ifstream infile(filename.c_str());
-    std::string line;
-    while ( getline(infile, line) ) {
-      utility::vector1< std::string > tokens ( utility::split( line ) );
-      int x = std::stoi(tokens[1]);
-      int y = std::stoi(tokens[2]);
-      int z = std::stoi(tokens[3]);
-			// put 2D slice at z = 0
-			if ( type == "2D"  || type == "2D_3D" ) {
-//					TR << "Grid: " << x << " " << y << std::endl;
-					for (int i = -5; i <= 5; i++ ) {
-//						z = int(grid_dimension_/2) + i;
-						z = int(actual_grid_dimension_/2) + i;
-						grid_(x,y,z).fill();
-					}
-    	} else {
-				grid_(x,y,z).fill();
-			}
-		}
-//   } else std::cout << "Unable to open file" << filename << std::endl;
-
-  return;
+void
+VoxelGrid::voxelize(core::pose::Pose const & pose) {
+    // find x, y, z and lj of every atom of the pose
+    std::vector<std::vector<core::Real>> atom_coords;
+    std::vector<core::Real> ljs;
+    core::Real lj;
+    for (core::pose::Pose::const_iterator res = pose.begin(); res != pose.end(); ++res) {
+        for (core::Size atom_index = 1; atom_index <= res->natoms(); ++atom_index) {
+            // skip if atom is Hydrogen or if residue is virtual.
+            if (!res->atom_is_hydrogen(atom_index && res->aa() != core::chemical::aa_vrt)) {
+                core::Real x = res->xyz(atom_index).x();
+                core::Real y = res->xyz(atom_index).y();
+                core::Real z = res->xyz(atom_index).z();
+                // only way I know of to test for a centroid atom
+                if (res->atom_type(atom_index).lj_radius() == 0.0)
+                    lj = res->nbr_radius();
+                else
+                    lj = res->atom_type(atom_index).lj_radius();
+                atom_coords.emplace_back(x);
+                atom_coords.emplace_back(y);
+                atom_coords.emplace_back(z);
+                ljs.emplace_back(lj);
+            }
+        }
+    }
+	voxelize(atom_coords, ljs);
 }
+//
+// void VoxelGrid::voxel_grid_from_file( std::string filename)
+// {
+// 	 using namespace basic::options;
+//    using namespace basic::options::OptionKeys;
+//
+// 	std::string type = option[zernike_descriptor::zernike_transform_type].value();
+//
+//    clean_grid();
+//    grid_res_ = 2.0;
+//     std::ifstream infile(filename.c_str());
+//     std::string line;
+//     while ( getline(infile, line) ) {
+//       utility::vector1< std::string > tokens ( utility::split( line ) );
+//       int x = std::stoi(tokens[1]);
+//       int y = std::stoi(tokens[2]);
+//       int z = std::stoi(tokens[3]);
+// 			// put 2D slice at z = 0
+// 			if ( type == "2D"  || type == "2D_3D" ) {
+// //					TR << "Grid: " << x << " " << y << std::endl;
+// 					for (int i = -5; i <= 5; i++ ) {
+// //						z = int(grid_dimension_/2) + i;
+// 						z = int(actual_grid_dimension_/2) + i;
+// 						grid_(x,y,z).fill();
+// 					}
+//     	} else {
+// 				grid_(x,y,z).fill();
+// 			}
+// 		}
+// //   } else std::cout << "Unable to open file" << filename << std::endl;
+//
+//   return;
+// }
 
 void VoxelGrid::set_voxel_grid( std::vector< std::vector<int> > slice_for_ZT )
 {
@@ -644,7 +655,50 @@ void VoxelGrid::mark_surface(int x, int y, int z) {
     grid_(x, y, z).surface_by_fs();
 }
 
-void VoxelGrid::find_surface() {
+void VoxelGrid::find_surface_with_stack(){
+    std::stack<std::vector<int>> stack;
+
+    // start from the corner of the grid
+    stack.push({1, 1, 1});
+
+    // search
+    while (!stack.empty()) {
+        std::vector<int> index = stack.top();
+        int x = index[0];
+        int y = index[1];
+        int z = index[2];
+        stack.pop();
+
+        // mark voxel as visited
+        grid_(x, y, z).visit_by_fs();
+
+        for(int i = 0; i < 26; ++i){
+            // retrieve a neighbour
+            int x_to_check = x + neighbours_[i].x();
+            int y_to_check = y + neighbours_[i].y();
+            int z_to_check = z + neighbours_[i].z();
+
+            // if the neighbour is out of the grid; continue
+            if (is_xyz_out_of_grid(x_to_check, y_to_check, z_to_check))
+                continue;
+
+            // if the nieghbour is filled, mark it it as surface if it is within the adjacent voxels
+            if (grid_(x_to_check, y_to_check, z_to_check).is_filled() && i < 6)
+                    mark_surface(x_to_check, y_to_check, z_to_check);
+
+            // add adjacent neighbour voxels to the stack if the following conditions DO NOT apply:
+            //  1. Voxel is already visited
+            //  2. Voxel is filled.
+            if ( !( grid_(x_to_check, y_to_check, z_to_check).is_visited_by_fs() ||
+                    grid_(x_to_check, y_to_check, z_to_check).is_filled() )) {
+                stack.push({x_to_check, y_to_check, z_to_check});
+            }
+        }
+    }
+}
+
+void
+VoxelGrid::find_surface_with_recursion(){
     std::tuple<int, int, int> edge;
     try {
         edge = find_edge();
@@ -654,7 +708,41 @@ void VoxelGrid::find_surface() {
     int x = std::get<0>(edge);
     int y = std::get<1>(edge);
     int z = std::get<2>(edge);
-    fillsurface(x,y,z);
+    fillsurface_recursion(x, y, z);
+}
+
+void
+VoxelGrid::fillsurface_recursion(int x, int y, int z){
+
+	// check if out of the grid:
+	if (is_xyz_out_of_grid(x,y,z))
+		return;
+
+	// return if voxel is visited or filled
+	if (grid_(x, y, z).is_visited_by_fs() || grid_(x, y, z).is_filled())
+		return;
+
+	// mark voxel as visited
+	grid_(x, y, z).visit_by_fs();
+
+	if (detect_neighbours(x, y, z)) {
+		fillsurface_recursion(x, y, z + 1);
+		fillsurface_recursion(x, y, z - 1);
+		fillsurface_recursion(x + 1, y, z);
+		fillsurface_recursion(x - 1, y, z);
+		fillsurface_recursion(x, y + 1, z);
+		fillsurface_recursion(x, y - 1, z);
+	}
+
+}
+
+void
+VoxelGrid::find_surface() {
+    if (never_leave_neighbour_) {
+        find_surface_with_recursion();
+    } else {
+        find_surface_with_stack();
+    }
 }
 
 bool
@@ -709,32 +797,6 @@ VoxelGrid::find_edge() {
     //todo: stil?
     // compiler wants me to return a value outside of the for loops
 //    return std::make_tuple(0,0,0);
-}
-
-void
-VoxelGrid::fillsurface(int x, int y, int z){
-
-    // check if out of the grid:
-    if (is_xyz_out_of_grid(x,y,z))
-        return;
-
-    // return if voxel is visited or filled
-    if (grid_(x, y, z).is_visited_by_fs() || grid_(x, y, z).is_filled())
-        return;
-
-    // mark voxel as visited
-    grid_(x, y, z).visit_by_fs();
-
-    //
-    if(detect_neighbours(x, y, z)) {
-        fillsurface(x, y, z + 1);
-        fillsurface(x, y, z - 1);
-        fillsurface(x + 1, y, z);
-        fillsurface(x - 1, y, z);
-        fillsurface(x, y + 1, z);
-        fillsurface(x, y - 1, z);
-    }
-    return;
 }
 
 // we go through all 26
@@ -835,7 +897,7 @@ VoxelGrid::actual_grid_size() {
 //                    visit_by_fs_data.emplace_back(std::tuple<int, int, int>(i, j, k));
 //                else if (grid_(i, k, j).is_surface_by_fs())
 //                    surface_by_fs_data.emplace_back(std::tuple<int, int, int>(i, j, k));
-//                else if (grid_(i, k, j).visited_by_edt())
+//                else if (grid_(i, k, j).is_visited_by_edt())
 //                    visit_by_edt_data.emplace_back(std::tuple<int, int, int>(i, j, k));
 //                else if (grid_(i, k, j).is_surface_by_edt())
 //                    surface_by_edt_data.emplace_back(std::tuple<int, int, int>(i, j, k));
@@ -897,7 +959,7 @@ VoxelGrid::actual_grid_size() {
 //                    surface_by_fs_y.emplace_back(j);
 //                    surface_by_fs_z.emplace_back(k);
 //                }
-//                else if (grid_(i, k, j).visited_by_edt()) {
+//                else if (grid_(i, k, j).is_visited_by_edt()) {
 //                    visit_by_edt_x.emplace_back(i);
 //                    visit_by_edt_y.emplace_back(j);
 //                    visit_by_edt_z.emplace_back(k);
@@ -1023,7 +1085,7 @@ VoxelGrid::get_visit_by_edt_voxels() {
     for (i = 1; i <= actual_grid_dimension_; i++) {
         for (k = 1; k <= actual_grid_dimension_; k++) {
             for (j = 1; j <= actual_grid_dimension_; j++) {
-                if (grid_(i, k, j).visited_by_edt()) {
+                if (grid_(i, k, j).is_visited_by_edt()) {
                     visit_by_edt_x.emplace_back(i);
                     visit_by_edt_y.emplace_back(j);
                     visit_by_edt_z.emplace_back(k);
@@ -1061,7 +1123,74 @@ VoxelGrid::get_surface_by_edt_voxels() {
     return surface_by_edt;
 }
 
+void
+VoxelGrid::write_json_data(std::ofstream & file, std::string voxeltype, std::vector<std::vector<int>> & voxelvector) {
+    file << "\t\"" << voxeltype << "\": [";
+    for (size_t i = 0; i < voxelvector.size(); ++i) {
+        const auto& xyz = voxelvector[i];
+        file << "[";
+        for (size_t j = 0; j < xyz.size(); ++j) {
+            file << xyz[j];
+            if (j < xyz.size() - 1) {
+                file << ", ";
+            }
+        }
+        file << "]";
+        if (i < voxelvector.size() - 1) {
+            file << ", ";
+        }
+    }
+    file << "]";
+}
 
+void
+VoxelGrid::output_grid_json(std::string name) {
+    // setup stream
+    std::ofstream file;
+    file.open(name);
+
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << name << std::endl;
+        return;
+    }
+
+    std::vector<std::vector<int>> filldata;
+    std::vector<std::vector<int>> visited;
+    std::vector<std::vector<int>> surface;
+    std::vector<std::vector<int>> surface_edt;
+    std::vector<std::vector<int>> visited_edt;
+
+    int i, j, k;
+    for (i = 1; i <= actual_grid_dimension_; i++) {
+        for (k = 1; k <= actual_grid_dimension_; k++) {
+            for (j = 1; j <= actual_grid_dimension_; j++) {
+                if (grid_(i, k, j).is_filled())
+                    filldata.emplace_back(std::vector<int>{i, j, k});
+                if (grid_(i, k, j).is_visited_by_fs())
+                    visited.emplace_back(std::vector<int>{i, j, k});
+                if (grid_(i, k, j).is_surface_by_fs())
+                    surface.emplace_back(std::vector<int>{i, j, k});
+                if (grid_(i, k, j).is_surface_by_edt())
+                    surface_edt.emplace_back(std::vector<int>{i, j, k});
+                if (grid_(i, k, j).is_visited_by_edt())
+                    visited_edt.emplace_back(std::vector<int>{i, j, k});
+            }
+        }
+    }
+    file << "{\n";
+    write_json_data(file, "filled", filldata);
+    file << ",\n";
+    write_json_data(file, "visited", visited);
+    file << ",\n";
+    write_json_data(file, "surface", surface);
+    file << ",\n";
+    write_json_data(file, "visited_edt", visited_edt);
+    file << ",\n";
+    write_json_data(file, "surface_edt", surface_edt);
+    file << "\n}\n";
+
+    file.close();
+}
 
 // todo: 1 index these badboys instead
 void
@@ -1094,7 +1223,7 @@ VoxelGrid::output_grid_csv(std::string name) {
                     surfacedata << i << "," << k << "," << j << "," << actual_grid_dimension_ << "\n";
                 if (grid_(i, k, j).is_surface_by_edt())
                     surface_by_edt_data << i << "," << k << "," << j << "," << actual_grid_dimension_ << "\n";
-                if (grid_(i, k, j).visited_by_edt())
+                if (grid_(i, k, j).is_visited_by_edt())
                     visit_by_edt_data << i << "," << k << "," << j << "," << actual_grid_dimension_ << "\n";
             }
         }
@@ -1370,12 +1499,12 @@ VoxelGrid::zernike_transform(int order) {
 
 void
 VoxelGrid::zernike_transform_3D_slice(int order, std::vector< std::vector< std::vector<int> > > slice) {
-	
+
 	using namespace basic::options;
    	using namespace basic::options::OptionKeys;
 
         bool debug = option[zernike_descriptor::debug].value();
-	
+
 	if (debug) {
    		std::ofstream savefile32dd("pose.slice.grid.2d.3d.dat");
 	}
@@ -1415,7 +1544,7 @@ VoxelGrid::zernike_transform_3D_slice(int order, std::vector< std::vector< std::
     }
 		num_surface_2d_pixels_ = num_surface_voxels;
 		max_surface_dimension_ = max_dim;
-		
+
     zernike_descriptor_ = zernike::ZernikeDescriptor<double, double>(zernike_array, grid_dimension_, order);
     delete [] zernike_array;
 }
@@ -1962,7 +2091,7 @@ VoxelGrid::zernike2D_transform_from_slice(int order) {
 		}
 
 		num_surface_2d_pixels_ = v_intersection.size();
-		max_surface_dimension_ = max_dim;	
+		max_surface_dimension_ = max_dim;
 
     ///transform
 //    auto finish = std::chrono::high_resolution_clock::now();

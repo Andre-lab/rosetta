@@ -46,6 +46,9 @@ sources = {
 		"mixedMC", # /* Ameya Harmalkar, documentation see comments in file */
 	],
 	"pilot/andre" : [
+        "zernike_from_grid",
+        "zernike_sample",
+        "zernike_align",
 		#"SymmDataTest",
 		#"SymDock",	 # /* Ingemar Andre,Documentation Location,Demo Location */
 	],
@@ -665,11 +668,20 @@ sources = {
 	],
 
 	# M ######################################################################
+	"pilot/mads" : [
+        # "selectbydeltasasa_test",
+	    "zernike_test",
+	    "zernike",
+	    "shapedocking",
+	    "other_tests",
+        ],
+
 	"pilot/maprahamian" : [
 		"burial_measure_centroid",
 		#"per_residue_solvent_exposure",
 		#"score_test",
 	],
+
 	"pilot/mdsmith" : [
 		#"ligand_motifs",
 		#"motif_ligand_packer_design",

@@ -71,9 +71,10 @@ ZernikeDescriptorCalculator::ZernikeDescriptorCalculator(
     std::string const & surface_type,
     core::Real probe,
     core::Real shell,
-    int num_slices):
+    int num_slices,
+    bool never_leave_neighbour):
     order_(order),
-    voxelgrid_(size, surface_type, probe, shell),
+    voxelgrid_(size, surface_type, probe, shell, never_leave_neighbour),
     num_slices_(num_slices) {}
 
 std::vector<double>
@@ -82,7 +83,6 @@ ZernikeDescriptorCalculator::invariants_from_pose(core::pose::Pose const & pose)
     voxelgrid_.find_surface();
     voxelgrid_.edt();
     voxelgrid_.zernike_transform(order_);
-    voxelgrid_.output_grid_csv("voxelgrid.pose.");
     return voxelgrid_.invariants();
 }
 
@@ -92,9 +92,48 @@ ZernikeDescriptorCalculator::moments_from_pose(core::pose::Pose const & pose){
     voxelgrid_.find_surface();
     voxelgrid_.edt();
     voxelgrid_.zernike_transform(order_);
-    voxelgrid_.invariants();
-		return voxelgrid_.get_zernike_descriptor().GetMoments();
+    return voxelgrid_.get_zernike_descriptor().GetMoments();
 }
+
+std::vector<double>
+ZernikeDescriptorCalculator::invariants_from_vector(std::vector<std::vector<core::Real>> atom_coords,
+std::vector<core::Real> ljs) {
+    voxelgrid_.voxelize(atom_coords, ljs);
+    voxelgrid_.find_surface();
+    voxelgrid_.edt();
+    voxelgrid_.zernike_transform(order_);
+    return voxelgrid_.invariants();
+}
+
+std::vector<std::complex<double>>
+    ZernikeDescriptorCalculator::moments_from_vector(std::vector<std::vector<core::Real>> atom_coords,
+    std::vector<core::Real> ljs) {
+    voxelgrid_.voxelize(atom_coords, ljs);
+    voxelgrid_.find_surface();
+    voxelgrid_.edt();
+    voxelgrid_.zernike_transform(order_);
+    return voxelgrid_.get_zernike_descriptor().GetMoments();
+}
+
+std::vector<std::vector<std::vector<std::complex<double>>>>
+ZernikeDescriptorCalculator::reconstruct_shape_from_pose(core::pose::Pose const & pose){
+    voxelgrid_.voxelize(pose);
+    voxelgrid_.find_surface();
+    voxelgrid_.edt();
+    voxelgrid_.zernike_transform(order_);
+    return voxelgrid_.get_zernike_descriptor().ReconstructionWrapper();
+}
+
+std::vector<std::vector<std::vector<std::complex<double>>>>
+ZernikeDescriptorCalculator::reconstruct_shape_from_vector(std::vector<std::vector<core::Real>> atom_coords,
+    std::vector<core::Real> ljs){
+    voxelgrid_.voxelize(atom_coords, ljs);
+    voxelgrid_.find_surface();
+    voxelgrid_.edt();
+    voxelgrid_.zernike_transform(order_);
+    return voxelgrid_.get_zernike_descriptor().ReconstructionWrapper();
+}
+
 
 std::vector<double>
 ZernikeDescriptorCalculator::invariants_slice_from_pose_and_surface_vectors(core::pose::Pose const & pose, numeric::xyzVector<Real> surface_vector1, numeric::xyzVector<Real> surface_vector2){
@@ -188,28 +227,28 @@ ZernikeDescriptorCalculator::invariants_slice_from_pose_oriented(core::pose::Pos
 	}
 }
 
-std::vector<double>
-ZernikeDescriptorCalculator::invariants_from_grid_file(std::string filename){
-
-	 using namespace basic::options;
-   using namespace basic::options::OptionKeys;
-
-    std::cout << "Reading voxelgrid..." << std::endl;
-    voxelgrid_.voxel_grid_from_file(filename);
-    voxelgrid_.find_surface();
-    voxelgrid_.edt();
-		//voxelgrid_.output_grid_csv("voxelgrid");
-		std::string type = option[zernike_descriptor::zernike_transform_type].value();
-		if ( type == "2D" ) {
-      std::cout << "2D zernike transfrom of grid..." << std::endl;
-			voxelgrid_.zernike2D_transform_from_slice(order_);
-			return voxelgrid_.invariants2D();
-		} else {
-      std::cout << "2D 3D zernike transform of grid..." << std::endl;
-			voxelgrid_.zernike2D_transform_from_slice(order_);
-			return voxelgrid_.invariants();
-	}
-}
+// std::vector<double>
+// ZernikeDescriptorCalculator::invariants_from_grid_file(std::string filename){
+//
+// 	 using namespace basic::options;
+//    using namespace basic::options::OptionKeys;
+//
+//     std::cout << "Reading voxelgrid..." << std::endl;
+//     voxelgrid_.voxel_grid_from_file(filename);
+//     voxelgrid_.find_surface();
+//     voxelgrid_.edt();
+// 		//voxelgrid_.output_grid_csv("voxelgrid");
+// 		std::string type = option[zernike_descriptor::zernike_transform_type].value();
+// 		if ( type == "2D" ) {
+//       std::cout << "2D zernike transfrom of grid..." << std::endl;
+// 			voxelgrid_.zernike2D_transform_from_slice(order_);
+// 			return voxelgrid_.invariants2D();
+// 		} else {
+//       std::cout << "2D 3D zernike transform of grid..." << std::endl;
+// 			voxelgrid_.zernike2D_transform_from_slice(order_);
+// 			return voxelgrid_.invariants();
+// 	}
+// }
 
 
 std::vector< std::vector<int> >
@@ -242,6 +281,26 @@ ZernikeDescriptorCalculator::invariants_from_file(std::string const & filename){
     // todo: change TR when class has its own file.
     TR << "Read " << zd.size() << " zernike descriptors" << std::endl;
     return zd;
+}
+
+void
+ZernikeDescriptorCalculator::invariants_from_vector_to_file(std::vector<std::vector<core::Real>> atom_coords,
+    std::vector<core::Real> ljs, std::string const & filename){
+    std::ofstream zd_file;
+    zd_file.open(filename);
+
+    // header
+    // time_t now = time(0);
+    // tm *ltm = localtime(&now);
+    zd_file << "Zernike invariants | Parameters: Order:" << order_ << " | Grid dimension: " << voxelgrid_.grid_size() << " | Surface type: " << voxelgrid_.surface_type() <<
+    " | Probe radius: " <<  std::setprecision(3) << voxelgrid_.probe_radius() << " | Shell thickness: " << std::setprecision(3) << voxelgrid_.shell_thickness() << std::endl;
+
+    // descriptors
+    std::vector<double> invariants = this->invariants_from_vector(atom_coords, ljs);
+    for (double descriptor : invariants) {
+        zd_file << descriptor << std::endl;
+    }
+    zd_file.close();
 }
 
 void
@@ -400,33 +459,33 @@ ZernikeDescriptorCalculator::invariants_2D_3D_from_pose_and_slice(core::pose::Po
 }
 
 
-void
-ZernikeDescriptorCalculator::invariants_from_grid_file_to_file(std::string input_filename, std::string const & output_filename){
-    using namespace basic::options;
-    using namespace basic::options::OptionKeys; 
-
-    std::ofstream zd_file;
-    zd_file.open(output_filename);
-    // header
-    time_t now = time(0);
-    tm *ltm = localtime(&now);
-//    auto start = std::chrono::high_resolution_clock::now();
-    // descriptors
-    std::vector<double> invariants = this->invariants_from_grid_file(input_filename);
-    std::string type = option[zernike_descriptor::zernike_transform_type].value();
-
-    zd_file << "Invariants for " << input_filename << " | date: " << ltm->tm_mday << "-" << 1 + ltm->tm_mon << "-" << 1900 + ltm->tm_year;
-    zd_file << " | Parameters: Order:" << order_ << " | Grid dimension: " << voxelgrid_.grid_size() << " | Surface type: " << voxelgrid_.surface_type() <<
-    " | Probe radius: " <<  std::setprecision(3) << voxelgrid_.probe_radius() << " | Shell thickness: " << std::setprecision(3) << voxelgrid_.shell_thickness() 
-    << " | " << type << std::endl;
-//    auto finish = std::chrono::high_resolution_clock::now();
-//    std::chrono::duration<double> elapsed = finish - start;
-//    std::cout << "Time for ZD: " << elapsed.count()  << std::endl;
-    for (double descriptor : invariants) {
-        zd_file << descriptor << std::endl;
-    }
-   zd_file.close();
-}
+// void
+// ZernikeDescriptorCalculator::invariants_from_grid_file_to_file(std::string input_filename, std::string const & output_filename){
+//     using namespace basic::options;
+//     using namespace basic::options::OptionKeys;
+//
+//     std::ofstream zd_file;
+//     zd_file.open(output_filename);
+//     // header
+//     time_t now = time(0);
+//     tm *ltm = localtime(&now);
+// //    auto start = std::chrono::high_resolution_clock::now();
+//     // descriptors
+//     std::vector<double> invariants = this->invariants_from_grid_file(input_filename);
+//     std::string type = option[zernike_descriptor::zernike_transform_type].value();
+//
+//     zd_file << "Invariants for " << input_filename << " | date: " << ltm->tm_mday << "-" << 1 + ltm->tm_mon << "-" << 1900 + ltm->tm_year;
+//     zd_file << " | Parameters: Order:" << order_ << " | Grid dimension: " << voxelgrid_.grid_size() << " | Surface type: " << voxelgrid_.surface_type() <<
+//     " | Probe radius: " <<  std::setprecision(3) << voxelgrid_.probe_radius() << " | Shell thickness: " << std::setprecision(3) << voxelgrid_.shell_thickness()
+//     << " | " << type << std::endl;
+// //    auto finish = std::chrono::high_resolution_clock::now();
+// //    std::chrono::duration<double> elapsed = finish - start;
+// //    std::cout << "Time for ZD: " << elapsed.count()  << std::endl;
+//     for (double descriptor : invariants) {
+//         zd_file << descriptor << std::endl;
+//     }
+//    zd_file.close();
+// }
 
 void
 ZernikeDescriptorCalculator::invariants_from_grid_outline_file_to_file(std::string input_filename, std::string const & output_filename){
@@ -472,7 +531,7 @@ ZernikeDescriptorCalculator::get_2d_moments() {
 }
 
 VoxelGrid &
-ZernikeDescriptorCalculator::grid() {
+ZernikeDescriptorCalculator::get_grid() {
     return voxelgrid_;
 }
 
@@ -585,7 +644,9 @@ ZernikeDescriptorEnergy::compute( core::pose::Pose const & pose, bool report ) c
         report_on_current_invariants(zd_current);
 
     if (zd_current.size() != zd_reference.size() )
-        utility_exit_with_message("Zernike Descriptors have different sizes"); // does this happen?
+        utility_exit_with_message("Zernike Descriptors have different sizes. "
+        "Did you parse the zernike_file commandline flag? "
+        "If not there's no reference shape to score against.");
 
     // Calculate the Zernike score as a L2 norm between the computed descriptors and the reference descriptor.
     core::Real L2_norm = 0;

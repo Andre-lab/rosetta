@@ -41,7 +41,7 @@ namespace zernike {
 /**
 * This class serves as a wrapper around the geometrical and
 * Zernike moments. It provides also the implementation of invariant Zernike
-* descriptors, means of reconstruction of orig. function, etc.
+* descriptor_out, means of reconstruction_out of orig. function, etc.
 */
 template<class T, class TIn>
 class ZernikeDescriptor
@@ -64,11 +64,14 @@ public:
 public:
 
     ZernikeDescriptor (
-            T* _voxels,                 /**< the cubic voxel grid */
+            T* _voxels,                 /**< the cubic voxel get_grid */
             int _dim,                   /**< dimension is $_dim^3$ */
             int _order                  /**< maximal order of the Zernike moments (N in paper) */
     );
     ZernikeDescriptor ();
+
+    std::vector<std::vector<std::vector<std::complex<double>>>>
+    ReconstructionWrapper();
 
     /**
     * Saves the computed invariants into a binary file
@@ -108,7 +111,7 @@ private:
 private:
     // ---- member variables ----
     T*      voxels_;                // 1D array containing the voxels
-    int     dim_;                   // length of the edge of the voxel grid (which is a cube)
+    int     dim_;                   // length of the edge of the voxel get_grid (which is a cube)
     int     order_;                 // maximal order of the moments to be computed (max{n})
     T       zeroMoment_,            // zero order moment
             xCOG_, yCOG_, zCOG_,    // center of gravity
