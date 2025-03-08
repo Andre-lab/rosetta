@@ -22,6 +22,7 @@
 //Package headers
 #include <core/pose/Pose.hh>
 #include <core/pose/PDBInfo.hh>
+#include <core/conformation/Residue.hh>
 #include <basic/options/option.hh>
 #include <basic/options/keys/OptionKeys.hh>
 #include <core/id/AtomID.hh>
@@ -534,6 +535,7 @@ VoxelGrid &
 ZernikeDescriptorCalculator::get_grid() {
     return voxelgrid_;
 }
+
 
 /// constructor with parameters - also the default constructor
 ZernikeDescriptorEnergy::ZernikeDescriptorEnergy() : parent(utility::pointer::make_shared<ZernikeDescriptorEnergyCreator>()) {

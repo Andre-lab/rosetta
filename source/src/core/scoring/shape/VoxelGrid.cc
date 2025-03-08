@@ -18,11 +18,14 @@
 #include <core/scoring/shape/zernike/ZernikeDescriptor.hh>
 #include <core/scoring/shape/zernike/Zernike2Ddescriptor.hh>
 #include <core/conformation/ResidueFactory.hh>
+#include <core/conformation/Residue.hh>
 #include <core/kinematics/FoldTree.hh>
+#include <core/pose/util.hh>
 //#include <core/scoring/shape/Neighbour.hh>
 #include <core/types.hh>
 #include <numeric/random/random.hh>
 #include <numeric/xyz.functions.hh>
+#include <numeric/xyzVector.hh>
 //#include <math.h>       /* pow */
 #include <stack>
 #include <cmath>
@@ -39,6 +42,7 @@
 //#include <queue>
 //#include <basic/options/keys/edensity.OptionKeys.gen.hh>
 //#include <core/scoring/electron_density/ElectronDensity.hh>
+#include <basic/options/option.hh>
 #include <basic/options/keys/zernike_descriptor.OptionKeys.gen.hh>
 #include <iomanip>
 #include <ctime>

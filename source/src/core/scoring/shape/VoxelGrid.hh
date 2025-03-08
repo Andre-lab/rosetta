@@ -40,6 +40,7 @@
 // core
 #include <core/types.hh>
 #include <core/pose/Pose.hh>
+#include <numeric/xyzVector.hh>
 #include <core/scoring/shape/zernike/ZernikeDescriptor.hh>
 #include <core/scoring/shape/zernike/Zernike2Ddescriptor.hh>
 

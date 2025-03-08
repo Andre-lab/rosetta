@@ -265,7 +265,6 @@
 #include <core/energy_methods/FiberDiffractionEnergyGpuCreator.hh>
 #endif
 #include <core/energy_methods/PointWaterEnergyCreator.hh>
-#include <core/energy_methods/PointWaterEnergyCreator.hh>
 #include <core/scoring/shape/ZernikeDescriptorEnergyCreator.hh>
 
 // Rotamer Library registration
@@ -668,6 +667,7 @@ static EnergyMethodRegistrator< energy_methods::SAXSEnergyCreatorCEN > SAXSEnerg
 static EnergyMethodRegistrator< energy_methods::SAXSEnergyCreatorFA > SAXSEnergyCreatorFA_registrator;
 static EnergyMethodRegistrator< energy_methods::SAXSEnergyCreator > SAXSEnergyCreator_registrator;
 static EnergyMethodRegistrator< energy_methods::PointWaterEnergyCreator > PointWaterEnergyCreator_registrator;
+static EnergyMethodRegistrator< scoring::shape::ZernikeDescriptorEnergyCreator > ZernikeDescriptorEnergyCreator_registrator;
 
 static EnergyMethodRegistrator< energy_methods::FiberDiffractionEnergyCreator > FiberDiffractionEnergyCreator_registrator;
 static EnergyMethodRegistrator< energy_methods::FiberDiffractionEnergyDensCreator > FiberDiffractionEnergyDensCreator_registrator;

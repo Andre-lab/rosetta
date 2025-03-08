@@ -15,29 +15,34 @@
 #ifndef INCLUDED_core_scoring_shape_Neighbour_hh
 #define INCLUDED_core_scoring_shape_Neighbour_hh
 
-#include <basic/options/option.hh>
-#include <basic/options/keys/in.OptionKeys.gen.hh>
-#include <devel/init.hh>
-#include <utility/pointer/owning_ptr.hh>
+//#include <basic/options/option.hh>
+//#include <basic/options/keys/in.OptionKeys.gen.hh>
+//#include <devel/init.hh>
+//#include <utility/pointer/owning_ptr.hh>
 
 // core
-#include <core/pose/Pose.hh>
-#include <core/import_pose/import_pose.hh>
-#include <core/id/types.hh>
-#include <core/conformation/Residue.hh>
-#include <core/pose/util.hh>
-#include <core/chemical/AtomType.hh>
+//utility headers
+#include <core/types.hh>
+//#include <core/pose/Pose.hh>
+//#include <core/import_pose/import_pose.hh>
+//#include <core/id/types.hh>
+//#include <core/conformation/Residue.hh>
+//#include <core/pose/util.hh>
+//#include <core/chemical/AtomType.hh>
 
 // protocols
-#include <protocols/simple_moves/SwitchResidueTypeSetMover.hh>
+//#include <protocols/simple_moves/SwitchResidueTypeSetMover.hh>
 
 // stl
-#include <math.h>       /* ceil  and fabs */
-#include <algorithm>   /* sort */
-#include <fstream>     /* ofstream */
-#include <chrono>
-#include <ctime>
-#include <vector>
+//#include <math.h>       
+/* ceil  and fabs */
+//#include <algorithm> 
+/* sort */
+//#include <fstream>     
+/* ofstream */
+//#include <chrono>
+//#include <ctime>
+//#include <vector>
 
 /// @brief Neighbour object that is used to store 1 neighbour position as well as the distance to the neighbour.
 class Neighbour {
